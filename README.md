@@ -3,3 +3,5 @@
 dependencies {
 	        implementation 'com.github.xiagea:VideoEditor:release'
 	}
+
+minSdkVersion 19
