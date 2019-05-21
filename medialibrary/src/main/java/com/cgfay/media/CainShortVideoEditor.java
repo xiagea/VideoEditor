@@ -50,14 +50,14 @@ public class CainShortVideoEditor {
     /**
      * 将pcm文件转成aac文件
      * @param pcmPath
+     * @param dstPath m4a格式
      * @param sampleRate
      * @param channel
      * @return
      */
-    public String pcmToAAC(String pcmPath, int sampleRate, int channel) {
+    public String pcmToAAC(String pcmPath, String dstPath, int sampleRate, int channel) {
         List<String> cmdList = new ArrayList<String>();
 
-        String dstPath = VideoEditorUtil.createFileInBox("m4a");
         cmdList.add("ffmpeg");
 
         cmdList.add("-f");
@@ -96,6 +96,7 @@ public class CainShortVideoEditor {
     /**
      * 将两个PCM音频混合
      * @param srcPath
+     * @param dstPath pcm格式
      * @param sampleRate
      * @param channel
      * @param srcPath1
@@ -105,7 +106,7 @@ public class CainShortVideoEditor {
      * @param volume1
      * @return
      */
-    public String pcmMix(String srcPath, int sampleRate, int channel,
+    public String pcmMix(String srcPath, String dstPath, int sampleRate, int channel,
                          String srcPath1, int sampleRate1, int channel1,
                          float volume, float volume1) {
         List<String> cmdList = new ArrayList<String>();
@@ -114,7 +115,6 @@ public class CainShortVideoEditor {
                 "[0:a]volume=volume=%f[a1]; [1:a]volume=volume=%f[a2]; " +
                 "[a1][a2]amix=inputs=2:duration=first:dropout_transition=2", volume, volume1);
 
-        String dstPath = VideoEditorUtil.createFileInBox("pcm");
         cmdList.add("ffmpeg");
 
         cmdList.add("-f");
@@ -164,18 +164,18 @@ public class CainShortVideoEditor {
      * 将两个音频延时混合，混合得到AAC格式的文件
      * @param audioPath
      * @param audioPath1
+     * @param dstPath m4a格式
      * @param leftDelayMs   第二个音频左声道相对于第一个音频的延时
      * @param rightDelayMs  第二个音频右声道相对于第一个音频的延时
      * @return
      */
-    public String audioDelayMix(String audioPath, String audioPath1, int leftDelayMs, int rightDelayMs) {
+    public String audioDelayMix(String audioPath, String audioPath1, String dstPath, int leftDelayMs, int rightDelayMs) {
         List<String> cmdList = new ArrayList<String>();
         String overlayXY = String.format(Locale.getDefault(),
                 "[1:a]adelay=%d|%d[delaya1]; " +
                 "[0:a][delaya1]amix=inputs=2:duration=first:dropout_transition=2",
                 leftDelayMs, rightDelayMs);
 
-        String dstPath = VideoEditorUtil.createFileInBox("m4a");
         cmdList.add("ffmpeg");
 
         cmdList.add("-i");
@@ -210,18 +210,18 @@ public class CainShortVideoEditor {
      * 两个音频文件按照不同音量进行合成
      * @param audioPath1
      * @param audioPath2
+     * @param dstPath m4a格式
      * @param volume1
      * @param volume2
      * @return
      */
-    public String audioVolumeMix(String audioPath1, String audioPath2, float volume1, float volume2) {
+    public String audioVolumeMix(String audioPath1, String audioPath2, String dstPath, float volume1, float volume2) {
         List<String> cmdList = new ArrayList<String>();
 
         String filter = String.format(Locale.getDefault(),
                 "[0:a]volume=volume=%f[a1]; [1:a]volume=volume=%f[a2]; " +
                 "[a1][a2]amix=inputs=2:duration=first:dropout_transition=2", volume1, volume2);
 
-        String dstPath = VideoEditorUtil.createFileInBox("m4a");
         cmdList.add("ffmpeg");
 
         cmdList.add("-i");
@@ -255,15 +255,15 @@ public class CainShortVideoEditor {
     /**
      * 将pcm和video文件合并，视频文件不能有音频流
      * @param pcmPath       PCM文件路径
+     * @param dstPath       目标文件 mp4
      * @param sampleRate    采样率
      * @param channel       通道
      * @param videoPath     视频文件路径
      * @return              返回合成的mp4文件，失败返回null
      */
-    public String pcmVideoCombine(String pcmPath, int sampleRate, int channel, String videoPath) {
+    public String pcmVideoCombine(String pcmPath, String dstPath, int sampleRate, int channel, String videoPath) {
         List<String> cmdList = new ArrayList<String>();
 
-        String dstPath = VideoEditorUtil.createFileInBox("mp4");
         cmdList.add("ffmpeg");
 
         cmdList.add("-f");
@@ -470,26 +470,27 @@ public class CainShortVideoEditor {
     /**
      * 视频裁剪
      * @param srcPath    源媒体路径
+     * @param dstFile   目标视频路径
      * @param start     起始位置，秒
      * @param duration  时长，秒
      */
-    public String videoCut(String srcPath, float start, float duration) {
+    public String videoCut(String srcPath, String dstFile, float start, float duration) {
         if (FileUtils.fileExists(srcPath)) {
 
-            String dstFile = VideoEditorUtil.createFileInBox("mp4");
-
-            List<String> cmdList = new ArrayList<String>();
+            List<String> cmdList = new ArrayList<>();
 
             cmdList.add("ffmpeg");
-
-            cmdList.add("-i");
-            cmdList.add(srcPath);
 
             cmdList.add("-ss");
             cmdList.add(String.valueOf(start));
 
             cmdList.add("-t");
             cmdList.add(String.valueOf(duration));
+
+            cmdList.add("-accurate_seek");
+
+            cmdList.add("-i");
+            cmdList.add(srcPath);
 
             cmdList.add("-vcodec");
             cmdList.add("copy");
@@ -502,7 +503,7 @@ public class CainShortVideoEditor {
 
             String[] command = new String[cmdList.size()];
             for (int i = 0; i < cmdList.size(); i++) {
-                command[i] = (String) cmdList.get(i);
+                command[i] = cmdList.get(i);
             }
             int ret = execute(command);
             if (ret == 0) {
@@ -1045,6 +1046,16 @@ public class CainShortVideoEditor {
             FileUtils.deleteFile(tsPathArray.get(i));
         }
         return dstPath;
+    }
+
+    /**
+     * 自定义命令
+     * @param cmd 命令 必须ffmpeg开头
+     * @return true 成功 false 失败
+     */
+    public boolean execCmd(String[] cmd){
+        int ret= execute(cmd);
+        return ret == 0;
     }
 
     /**
